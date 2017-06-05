@@ -19,6 +19,7 @@ const LAND_INTENT = 'land';
 const GOTO_INTENT = 'goto';
 const GOTOAUTH_INTENT = 'gotoauth';
 const LISTNOW_INTENT = 'listnow';
+const RESET_INTENT = 'reset';
 
 // Contexts
 const WELCOME_CONTEXT = 'welcome';
@@ -35,7 +36,7 @@ const GOTOAUTH_CONTEXT = 'waitingtofly';
 const ID_PARAM = 'id';
 const BRANCH_PARAM = 'branch';
 const PLACENAME_PARAM = 'placename';
-const TOKEN_PARAM = 'stoken';
+const TOKEN_PARAM = 'token';
 const USERID_PARAM = 'userID';
 const FOUND_PARAM = 'found';
 
@@ -63,6 +64,7 @@ exports.assistantpilot = functions.https.onRequest((request, response) => {
     actionMap.set(GOTO_INTENT, goTo);
     actionMap.set(GOTOAUTH_INTENT, gotoAuth);
     actionMap.set(LISTNOW_INTENT, listNow);
+    actionMap.set(RESET_INTENT, reset);
     assistant.handleRequest(actionMap);
 
 
@@ -99,7 +101,7 @@ exports.assistantpilot = functions.https.onRequest((request, response) => {
             } else {
                 var drone = snapshot.val();
                 queue.set({
-                    mode: 'rth',
+                    mode: 'land',
                     land: true
                 });
                 const speech = `<speak>OK, ${drone.name}, is returning to home and landing</speak>`;
@@ -117,6 +119,7 @@ exports.assistantpilot = functions.https.onRequest((request, response) => {
             if (snapshot.val() == null) {
 
                 const speech = `<speak> I can not found a drone linked to your account. Do you want to bind a new drone? </speak>`;
+                const parameters = {};
                 assistant.setContext(MISSING_CONTEXT, 1, parameters);
                 assistant.ask(speech);
             } else {
@@ -138,6 +141,13 @@ exports.assistantpilot = functions.https.onRequest((request, response) => {
             const speech = `<speak> Great! Now I will rember current drone location as ${name}</speak>`;
             assistant.ask(speech);
         })
+    }
+
+    function reset(assistant) {
+        user.child("token").set(Math.random().toString(36).substr(2));
+            const speech = `<speak> I have successfully unliked all your drones</speak>`;
+            assistant.ask(speech);
+
     }
 
     function goTo(assistant) {
@@ -176,10 +186,10 @@ exports.assistantpilot = functions.https.onRequest((request, response) => {
     }
 
     function listNow(assistant) {
-       
-            places.once('value', function (snapshot) { 
+
+            places.once('value', function (snapshot) {
                 if (snapshot.val() != null) {
-                
+
                 var speech = `<speak> I Have this places rember for you,`;
                 snapshot.forEach(function (childSnapshot) {
                     speech += ` ${childSnapshot.key}, `;
@@ -187,15 +197,15 @@ exports.assistantpilot = functions.https.onRequest((request, response) => {
                 speech += `</speak>`;
                 assistant.ask(speech);
                     } else {
-            var speech = `<speak> I don't have any palces in your account, try adding them while flying your drone</speak>`;
+            var speech = `<speak> I don't have any places in your account, try adding them while flying your drone</speak>`;
             assistant.ask(speech);
         }
             })
-        
+
     }
 
     function gotoAuth(assistant) {
-       
+
          waitingauth.once('value', function (snapshot) {
 
             if (snapshot.val() == null) {
@@ -211,17 +221,17 @@ exports.assistantpilot = functions.https.onRequest((request, response) => {
             }
 
         })
-        
+
     }
 
     function addDrone(assistant) {
-        const token = Math.floor((Math.random() * 900000) + 100000);
+        const token = String(assistant.getArgument(TOKEN_PARAM));
         tokendb.child(token).set({
             userID: user_id,
             age: Firebase.ServerValue.TIMESTAMP
         });
 
-        const speech = `<speak>Great, please submit the following number in your drone client app: ${token}</speak>`;
+        const speech = `<speak>Great, your drone i d ${token} has been linked with your account.</speak>`;
 
         const parameters = {};
 
